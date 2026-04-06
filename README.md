@@ -21,7 +21,11 @@ be found at <https://hexdocs.pm/practice_elixir>.
 
 ## Run
 run the elixir scripts:
+```
 $ mix run run_me.exs
+```
 OR
+```
 $ mix run scripts/practice1.exs
+```
 
