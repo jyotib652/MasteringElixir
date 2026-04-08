@@ -270,3 +270,178 @@ IO.inspect(excited_words, label: "Excited Words")
 # Here, & captures the square function with arity 1 from DataProcessor module.
 # "&DataProcessor.square/1" in this form we can treat the function as data and
 # pass it to a higher order function like an argument.
+
+#--------------------------------------------------
+# Map
+#--------------------------------------------------
+# In Elixir, a Map is the "go-to" data structure for key-value stores. They are incredibly flexible because keys can be any data type (though atoms and strings are the most common).
+# Here is a breakdown of the syntax and how to use them.
+# 1. Basic Syntax
+# Maps are defined using the %{} syntax.
+#
+# Atom Keys (Most Common)
+# When your keys are atoms, Elixir provides a "shorthand" syntax that looks similar to JSON or Ruby.
+# # Shorthand syntax
+# user = %{name: "Alice", age: 30}
+#
+# # Standard syntax (equivalent to the above)
+# user = %{:name => "Alice", :age => 30}
+#
+# Generic Keys (The "Arrow" Syntax)
+# If you want to use strings, integers, or even other maps as keys, you must use the => (fat arrow) syntax.
+# # String keys
+# settings = %{"theme" => "dark", "notifications" => true}
+#
+# # Mixed keys
+# mixed = %{"first_name" => "Bob", :id => 1, 100 => "Score"}
+#
+# 2. Accessing ValuesThere are two primary ways to get data out of a map:
+# Dot Notation: Only works for atom keys.
+# If the key doesn't exist, it raises an error.
+# user.name extracts the value "Alice". So user.name --> "Alice"
+#
+# Bracket Syntax: Works for any key type. If the key doesn't exist, it returns nil.
+# settings["theme"] extracts the value "dark". So settings["theme"] --> "dark"
+# user[:age] extracts the value 30. So user[:age] --> 30
+#
+# 3. Updating Maps
+# Maps in Elixir are immutable. When you "update" a map, you are actually creating a new map with the changes.
+# The Update Operator (|)
+# This is a high-performance way to update a value, but it only works if the key already exists in the map.
+# user = %{name: "Alice", age: 30}
+# updated_user = %{user | age: 31}
+# # Result: %{name: "Alice", age: 31}
+#
+# Map Module
+# For adding new keys or working with dynamic keys, use the Map module:
+# Map.put(user, :location, "London")
+# Result: %{name: "Alice", age: 30, location: "London"}
+#
+# 4. Pattern Matching
+# This is one of Elixir's most powerful features. You can "destructure" a map to extract values into variables.
+# %{name: user_name} = %{name: "Alice", age: 30}
+# user_name is now "Alice"
+# Note: When pattern matching, the map on the left only needs to match a subset of the map on the right.
+# This makes it perfect for function arguments where you only care about specific fields.
+# Syntax Examples:
+# Empty Map	--> %{}
+# Map Creation -->	%{key: value} (Atoms) or %{"key" => value} (Others)
+# Access (Strict)	--> map.key
+# Access (Safe)	--> map[:key] or Map.get(map, :key)
+# Insert/Update	--> Map.put(map, :new_key, value)
+
+
+# Putting It All Together - A Complete Function Pipeline
+defmodule OrderSystem do
+  # Multiple function definitions with pattern matching
+  def validate_order(%{items: items, customer: customer}) when length(items) > 0 do
+    {:ok, %{items: items, customer: customer, status: :validated}}
+  end
+
+  def validate_order(_), do: {:error, "Invalid order"} # here _ is Catch all scenario. It would catch all those validate_order function that doesn't match all those previous validate_order functions signature.
+
+  def calculate_subtotal(%{items: items} = order) do
+    subtotal = items
+    |> Enum.map(fn %{price: price, quantity: quantity} -> price * quantity end)
+    |> Enum.sum
+
+    Map.put(order, :subtotal, subtotal)
+  end
+
+  def apply_tax(%{subtotal: subtotal} = order, rate \\ 0.08) do
+    tax = Float.round(subtotal * rate, 2)
+    order
+    |> Map.put(:tax, tax)
+    |> Map.put(:total, subtotal + tax)
+  end
+
+  def process_order(raw_order) do
+    with {:ok, validate_order} <- validate_order(raw_order) do
+      validate_order
+      |> calculate_subtotal()
+      |> apply_tax()
+      |> Map.put(:status, :processed)
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+end
+
+# This code snippet demonstrates a classic Elixir pattern called a "Happy Path" pipeline. It uses the with construct to handle potential errors gracefully while keeping the main logic readable.
+
+# Here is the breakdown of how it works:
+
+# 1. The with Special Form
+# The with statement is used to chain together operations that might fail.
+
+# The Match: {:ok, validate_order} <- validate_order(raw_order)
+# This says: "Call validate_order. If it returns a tuple starting with :ok, extract the second value and name it validate_order. Then, proceed to the do block."
+
+# The Failure: If validate_order returns something that doesn't match (like {:error, reason}), the code skips the do block entirely and jumps to the else block.
+
+# 2. The else Block (Error Handling)
+# This section catches anything that didn't match the <- arrow in the with statement.
+
+# 1. Breaking down {:error, reason} -> {:error, reason}
+# This specific line is a Pattern Match instruction:
+
+# Left side ({:error, reason}): This is the pattern the code is looking for. It says: "If the result is a 2-element tuple where the first element is the atom :error, then take whatever is in the second position and assign it to a variable named reason."
+
+# The Arrow (->): This means "if the above matches, then do this..."
+
+# Right side ({:error, reason}): This is the result the function actually returns. In this case, it’s just passing the error along exactly as it found it.
+# One small tip:
+# You don't always have to include the else block in a with statement. If you leave it out, and the match fails, Elixir will simply return the failed value (the error tuple) automatically.
+
+# However, explicitly writing {:error, reason} -> {:error, reason} is common when you want to be very clear about what your function returns, or if you want to log the error before returning it.
+
+# Why use with instead of if/else?
+# If you used nested if statements, your code would look like a "Pyramid of Doom." The with macro keeps everything flat and readable. If you had 5 more steps (checking inventory, charging credit cards, etc.), you could just add more <- lines to the with block without nesting deeper.
+#
+#1. The Left Arrow <- (The "Success" Gate)
+# Think of <- as a conditional filter. It is almost exclusively used in with and for (Comprehensions).
+
+# Used inside a with or for block
+# Context: with or for.
+
+# Behavior: It tries to match the right side against the left side. If it matches, the variable is bound and the code moves to the next line. If it fails to match, it stops the whole chain and returns the value that failed.
+# Example:
+# with {:ok, user} <- find_user(id),      # MUST be {:ok, user} to continue
+#      {:ok, card} <- get_credit_card(user) # MUST be {:ok, card} to continue
+# do
+#   charge(card)
+# end
+
+# 2. The Right Arrow -> (The "Choice" Branch)
+# Think of -> as a switch or a map. It maps a pattern to a consequence.
+
+# Used in case, cond, else, or fn
+# Context: case, receive, cond, else blocks, and anonymous functions.
+
+# Behavior: It defines a branch. It says "If the data looks like the left side, execute the block on the right side."
+
+# Example:
+# case validate_order(order) do
+#   {:ok, valid_data} ->  # IF it looks like this...
+#     process(valid_data) # THEN do this.
+
+#   {:error, reason} ->   # IF it looks like this...
+#     handle_error(reason) # THEN do this.
+# end
+
+# Test order
+order = %{
+  customer: "Alice",
+  items: [
+    %{name: "coffee", price: 4.50, quantity: 2},
+    %{name: "muffin", price: 3.25, quantity: 1}
+  ]
+}
+
+result = OrderSystem.process_order(order)
+IO.puts("\n")
+IO.inspect(result, label: "Processed order")
+
+# Test invalid order
+invalid_result = OrderSystem.process_order(%{customer: "Bob", items: []})
+IO.inspect(invalid_result, label: "Invalid order result")
