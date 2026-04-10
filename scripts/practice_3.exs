@@ -1,6 +1,7 @@
 #---------------------------------------------------
-# Creating Your First List
+# Lists and Tuples - Your Data Companions
 #---------------------------------------------------
+# Creating Your First List
 # Lists in Elixir are like dynamic arrays
 heroes = ["Superman", "Batman", "Wonder Woman", "Flash"]
 numbers = [1, 2, 3, 4, 5]
