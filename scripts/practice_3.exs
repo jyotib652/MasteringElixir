@@ -115,3 +115,91 @@ IO.inspect(strong_heroes, label: "Elite heroes")
 # b) Case statements: case hero do {name, p} when p > 90 -> ... end
 # In a comprehension, the "filtering" happens after the pattern has already been matched and the variables have been bound.
 # Because it's a general-purpose filter, it allows for more complex logic than a standard Guard (which is restricted to a small set of built-in functions for performance reasons)
+
+
+# The Immutability Advantage
+# orginal data remains unchanged
+original_heroes = ["Superman", "Batman", "Wonder Woman"]
+IO.inspect(original_heroes, label: "Original team")
+
+# Modifying creates new data structures
+expanded_team = ["Flash" | original_heroes] # This creates new list. Data/variables in Elixir immutable
+filtered_team = List.delete(original_heroes, "Batman") # This also creates a new list. Data/variables in Elixir immutable
+
+IO.puts("\n")
+IO.inspect(original_heroes, label: "Original team (unchanged)")
+IO.inspect(expanded_team, label: "Expanded team")
+IO.inspect(filtered_team, label: "Filtered team")
+
+# Same with tuples
+hero_profile = {"Superman", 30, :active}
+updated_profile = put_elem(hero_profile, 1, 31)  # remeber, tuples's size is fixed and updating tuples also creates a new tuple. Data/variables in Elixir immutable
+
+IO.puts("")
+IO.inspect(hero_profile, label: "Original profile")
+IO.inspect(updated_profile, label: "Updated profile")
+
+# Choosing the Right Tool
+# Lists: Use for collection that grow/shrink
+# Remember: In Elixir, data is immutable, which means once a list is created in memory, it cannot be changed.
+shopping_cart = [] # So, it's a new list
+shopping_cart = ["milk" | shopping_cart]  # So, it's also a new list
+shopping_cart = ["bread" | shopping_cart] # So, it's also a new list
+shopping_cart = ["eggs" | shopping_cart]  # So, it's also a new list
+# Explanation:
+# 1. Immutability & Rebinding
+# When you write shopping_cart = ["milk" | shopping_cart], you aren't modifying the memory address where the empty list lived. Instead, you are:
+# i) Creating a new list in memory.
+# ii) Rebinding the variable name shopping_cart to that new memory location.
+# iii) The old version of the list is eventually cleaned up by the garbage collector if nothing else is pointing to it.
+#
+# 2. Efficiency (The "Breadcrumb" Secret)While it's true you are creating a "new" list, Elixir is very clever about how it does this.
+# Because lists are "linked lists", Elixir doesn't copy every single item when you add something to the front.
+# Instead, it uses structural sharing:
+# i) The new list is just a new "head" (e.g., "eggs") that points to the existing list already in memory.
+# ii) The original list remains untouched and is simply reused as the "tail" of the new list.
+# iii) This makes prepending (using the [head | tail] syntax) an $O(1)$ operation—it's incredibly fast and memory-efficient.
+#
+# Pro Tip: Always add to the head of the list like you did here.
+# If you try to add to the end (e.g., shopping_cart ++ ["eggs"]),
+# Elixir has to traverse the entire list and copy every element to create the new version,
+# which becomes very slow as the list grows ($O(n)$ complexity).
+#
+# Detailed Explanation(V.V.I):
+# Structural Sharing in Action
+# When you prepend an item to a list, you aren't replacing the old list; you are building on top of it.
+# 1. shopping_cart = []: You point the variable to the empty list.
+# 2. shopping_cart = ["milk" | shopping_cart]: You create a new "cell" containing "milk". This cell has a pointer that links to the empty list.
+# 3. shopping_cart = ["bread" | shopping_cart]: You create a new "cell" containing "bread". Its pointer links to the "milk" cell.
+#
+# Is the empty list([]) Garbage Collected?
+# No, not while you're using it: The empty list [] at the very end of your chain is not garbage collected because your new list is literally sitting on top of it.
+# The "milk" element needs that empty list to mark the "end" of its tail.
+#
+# Yes, if it becomes "orphaned": If you were to suddenly say shopping_cart = ["apples"] (completely ignoring the previous list), the old chain ("bread" -> "milk" -> []) no longer has any variables pointing to it.
+# At that point, the garbage collector will eventually sweep it up to free memory.
+
+
+IO.puts("")
+IO.inspect(shopping_cart, label: "Shopping cart")
+
+# Tuples: Use for fixed, structured data
+database_record = {:user, "john_doe", 25, "john@example.com"}
+api_response = {:ok, %{data: "some info", status: 200}}
+coordinates_3d = {10.5, 20.3, 5.7}
+
+IO.puts("")
+IO.inspect(database_record, label: "User record")
+IO.inspect(api_response, label: "API response")
+IO.inspect(coordinates, label: "3D position")
+
+# Performance consideration
+large_list = Enum.to_list(1..10000)
+{time_list, _} = :timer.tc(fn -> hd(large_list) end)
+
+large_tuple = List.to_tuple(Enum.to_list(1..10000))
+{time_tuple, _} = :timer.tc(fn -> elem(large_tuple, 0) end)
+
+IO.puts("")
+IO.puts("List head access: #{time_list} microseconds")
+IO.puts("Tuple element access: #{time_tuple} microseconds")  # Tuples element acces are faster than Lists operation for random access
