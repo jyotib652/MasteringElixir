@@ -87,3 +87,100 @@ analyze_villain = fn
 IO.puts("")
 IO.puts(analyze_villain.(%{name: "Joker", threat_level: 85}))
 IO.puts(analyze_villain.(%{name: "Penguin", threat_level: 30}))
+
+
+# Converting Between Data Structures
+# Starting with a keyword list
+movie_ratings = [action: 8, comedy: 7, drama: 9, horror: 6]
+
+# Converting to a map for easier updates
+ratings_map = Enum.into(movie_ratings, %{})  # converting enumerable into a collectable which is a map for this scenario denoted by "%{}" symbol.
+IO.puts("")
+IO.inspect(ratings_map, label: "As Map")
+
+# Updating - Adding a new rating is now simpler
+updated_ratings = Map.put(ratings_map, :sci_fi, 10)
+IO.inspect(updated_ratings, label: "With Sci-fi")
+
+# Converting back to keyword list when needed
+final_list = Map.to_list(updated_ratings)
+IO.inspect(final_list, label: "Back to KeywordList")
+
+# Why use Keyword List not Map - Keyword List preserves order, maps doesn't guarantee it.
+# But to update the keyword List, you need to convert it back to Map.
+ordered_genre = [romance: 5, thriller: 8, western: 7]
+as_map = Enum.into(ordered_genre, %{})
+back_to_list = Map.to_list(as_map)
+
+IO.inspect(as_map, label: "Original Order")
+IO.inspect(back_to_list, label: "After Conversion")
+
+
+# Choosing your Data Structures Wisely
+# Keyword Lists excel at configuration and option
+defmodule APIClient do
+  def fetch_data(url, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 5000)
+    retries = Keyword.get(opts, :retries, 3)
+    headers = Keyword.get(opts, :headers, [])
+
+    "Fetching #{url} with timeout: #{timeout}ms, retries: #{retries}, headers: #{headers}"
+  end
+end
+
+# Multiple headers with same key - keyword lists handle this
+result1 = APIClient.fetch_data("https://api.heroes.com",
+  timeout: 10000,
+  headers: ["Accept: application/json", "Accept: text/html"])
+
+  IO.puts("")
+  IO.puts(result1)
+
+# Maps excel at structured data representation
+superhero_database = %{
+  "hero_001" => %{name: "Superman", city: "Metropolis", active: true},
+  "hero_002" => %{name: "Batman", city: "Gotham", active: true},
+  "hero_003" => %{name: "Wonder Woman", city: "Themyscira", active: true},
+}
+
+superman = Map.get(superhero_database, "hero_001")
+IO.puts("Found hero: #{superman.name} protecting #{superman.city}")
+
+
+# Safe Navigation through nested structures
+hero_profile = %{
+  name: "Doctor Strange",
+  location: %{
+    dimension: "Earth-616",
+    address: %{
+      building: "Sanctum Sanctorum",
+      street: "177A Bleecker Street",
+      city: "New York"
+    }
+  },
+  spells: ["Time manipulation", "Portal creation", "Astral projection"]
+}
+
+# using get_in for deep access
+building = get_in(hero_profile, [:location, :address, :building]) # The reason we provide those three specific atoms—[:location, :address, :building]—is because
+# they represent the sequential path required to reach the specific value you want.
+# A quick tip: If you ever try to access a key that is actually a string (e.g., "name") instead of an atom (:name),
+# get_in will return nil because they are different types in Elixir. Always match your path keys to the data types in your map!
+
+IO.puts("")
+IO.puts("Hero base: #{building}")
+
+# Safe access that won't crash
+dimension = get_in(hero_profile, [:location, :dimension])
+unknown = get_in(hero_profile, [:location, :phone_number])  # returns nil gracefully without crashing the program
+
+IO.puts("Dimension: #{dimension}")
+IO.puts("Phone: #{unknown}")
+
+# Pattern matching for safe extraction
+case Map.fetch(hero_profile, :spells) do
+  {:ok, spells} ->
+    IO.puts("Available spells: #{Enum.join(spells, ", ")}")
+  :error ->
+    IO.puts("No spells found for this hero")
+end
