@@ -155,6 +155,7 @@ IO.puts("")
 
 # Another beautiful example of sending and receiving messages using recursive calls with TCO
 defmodule PingPong do
+    # Base case
     def ping(pong_pid, 0) do
         send(pong_pid, :stop)
         IO.puts("Ping: done!")
@@ -188,3 +189,156 @@ IO.puts("")
 IO.puts("Now calling the Ping Pong 5 times/rounds")
 pong_pid = spawn(PingPong, :pong, [])
 PingPong.ping(pong_pid, 5)
+
+IO.puts("")
+#----------------------------------------------------------------------------------------------------
+
+# Send ourselves(Parent process) a task message and then open a receive block
+# to receive the data from parent mailbox and pattern match the message.
+send(self(), {:task, "Buy groceries"})  # Here, we're sending the message
+
+# The receive block will get the message immediately as the message
+# was already there. It's not an empty mailbox when we're trying to pull
+# the message from mailbox through receive block.
+receive do
+  {:task, item} ->
+    IO.puts("Task: #{item}")
+
+after           # when receive didn't get any matching message right away then this after clause will execute. **
+  2000 ->
+    IO.puts("No task found")
+end
+
+# ** This after clause says if there is no matching message right now then it will wait for 2000 milliseconds.
+# After this 2000 miliseconds timeout if no matching message arrives, the code after runs instead.
+#
+# But in this scenario as the mailbox already contains the matching message so the receive block
+# gets the message instantly and this after clause will not execute.
+
+# NOW let's try with an empty mailbox.
+receive do
+  {:task, item} ->
+    IO.puts("Task: #{item}")
+
+after
+  1000 ->
+    IO.puts("")
+    IO.puts("Mailbox empty. Timeout!")
+end
+
+
+IO.puts("")
+#----------------------------------------------------------------------------------------------------
+
+
+# Standard Pattern for Draining Mailbox Completely: Flush Pattern
+#------------------------------------------------------------------
+# This pattern uses after clause with 0 millisecond as timeout
+
+send(self(), {:weather, "Sunny", 72})
+send(self(), {:weather, "Rainy", 58})
+
+# Flush all messages with after 0
+defmodule MailBox do
+  def flush do
+    receive do
+      msg ->
+        IO.puts("Found: #{inspect(msg)}")
+        flush()
+
+    after
+      0 ->
+        IO.puts("Mailbox is empty now.")
+    end
+
+  end
+end
+
+MailBox.flush()
+
+# Note:
+# using after 0 is perfect for non-blocking checks. Here, 0 is timeout means
+# 0 millisecond timeout which is immediately.
+
+IO.puts("")
+#----------------------------------------------------------------------------------------------------
+
+
+# Flush pattern (using after 0) picks any kind of messages as it doesn't pattern match
+# the messages. Even if these messages contain different atoms, it doesn't matter.
+
+send(self(), {:weather, "Sunny", 72})
+send(self(), {:weather, "Rainy", 58})
+send(self(), {:alert, "Heat Wave", 85, "Stay indoor and hidrated"})
+
+# Flush all messages with after 0
+defmodule MailBoxWeather do
+  def flush do
+    receive do
+      msg ->
+        IO.puts("Found: #{inspect(msg)}")
+        flush()
+
+    after
+      0 ->
+        IO.puts("Mailbox is empty now.")
+    end
+
+  end
+end
+
+MailBoxWeather.flush()
+
+# Note:
+# Messages that do not match any clause in receive stay in the mailbox
+# permanently quitely eating memory. Over time this can cause memory leaks(overflows).
+# Always handle unexpected messages or flush your mailbox periodically.
+
+
+IO.puts("")
+#----------------------------------------------------------------------------------------------------
+
+
+# Handling unexpected messages without flushing. It's almost same as flushing
+# but we do not use "after 0" rather use pattern matching and
+# catch all type scenario with recursive call
+
+send(self(), {:valid, "Study Elixir"})
+send(self(), :random_noise)
+send(self(), {:priority, "Buy the game asap!!!"})
+send(self(), :another_random_noise)
+send(self(), {:valid, "Practice IEx"})
+
+defmodule SafeReceiver do
+  def listen(count \\ 0) do
+    receive do
+      {:valid, task} ->
+        IO.puts("Task: #{task}")
+        listen(count + 1)           # This recursive call is there so that all the messages inside the mailbox can be read.
+        # And without this recursive call, listen() function will stop here after this pattern match.
+
+      {:priority, task} ->
+        IO.puts("Priority Task: #{task}")
+        listen(count + 1)
+
+      other ->
+        IO.puts("Ignored: #{inspect(other)}")
+        listen(count)   # count remains same as we're not doing any task. We're not even counting these messages.
+        # These messages are ignored as they're of no use.
+
+    after
+      500 ->
+        IO.puts("Done. #{count} tasks.")
+    end
+  end
+end
+
+SafeReceiver.listen()  # We're not providing any argument to listen but still it's counting the tasks.
+
+# Note:
+# Is this code snippet Tail Call Optimized?
+# Yes, it is.
+# In this specific code, you are using an accumulator—it's just hidden in plain sight as the count argument.
+# 1. Is your code TCO?
+# Yes. For a function to be tail-recursive, the recursive call must be the last thing the function does.
+# So in total. It's a tail call and also using accumulator pattern.
