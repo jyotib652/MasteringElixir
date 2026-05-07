@@ -22,3 +22,6 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 practice_elixir-*.tar
 
+# Ignore backup files. Ignore any file with "bkp" in their name
+*_bkp
+
