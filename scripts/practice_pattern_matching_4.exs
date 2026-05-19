@@ -160,3 +160,7 @@ api_data = %{
 }
 
 IO.inspect(DataProcessor.process_user_data(api_data))
+
+# Note:
+# Maps - Use colon (:) when there is atom values
+# Maps - Use fat arrow (=>) when there are values that are not atoms.
